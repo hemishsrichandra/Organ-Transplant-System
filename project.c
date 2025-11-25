@@ -1,22 +1,25 @@
 #include<stdio.h>
 #include <string.h>
 #include<stdlib.h>
-#include<strings.h>
+#include<ctype.h>
+
+// Prototype for portable case-insensitive compare
+int my_strcasecmp(const char *a, const char *b);
 
 //recipient information
 struct recipient{
     char name[20];
-    char blood_grp[4];
+    char blood_grp[5];
     int age;
     char entry_date[11];
-    char hospital[20];
+    char hospital[25];
     char super_urgency[4];
 };
 
 //donor information
 struct donor{
     char name[20];
-    char blood_grp[4];
+    char blood_grp[5];
     int age;
     char death_date[11];
 };
@@ -97,9 +100,11 @@ struct Node_rec* del_end(struct Node_rec* head){
 
 //to delete a node in the middle of the recipients' linked list
 struct Node_rec* del_index(struct Node_rec* head,int index){
+    if (head == NULL || head->next == NULL) return head;
     struct Node_rec* p=head;
     struct Node_rec* q=head->next;
     for(int i=0;i<index-1;i++){
+        if (q->next == NULL) return head;
         p=p->next;
         q=q->next;
     }
@@ -141,6 +146,10 @@ void print_recipients(struct Node_rec* head){
     struct Node_rec* ptr=head;
     int i=1;
     printf("---- Recipient List ----\n\n");
+    if(head==NULL){
+        printf("No recipients available\n");
+        return;
+    }
     while(ptr!=NULL){
         printf("%d. Name: %s\n",i,(ptr->data).name);
         printf("   Blood Group: %s\n",(ptr->data).blood_grp);
@@ -202,7 +211,7 @@ struct Node_rec* match_recipient(struct Node_rec* head,char* bld_grp_dnr,int* ma
     int i=0;
     while(ptr!=NULL){
         //check if there is a super urgency case whose blood group matches
-        if(strcmp(ptr->data.super_urgency,"YES")==0 && blood_match(bld_grp_dnr,ptr->data.blood_grp)){
+        if(my_strcasecmp(ptr->data.super_urgency,"YES")==0 && blood_match(bld_grp_dnr,ptr->data.blood_grp)){
             printf("Allocate organ to %s in %s Hospital\n\n",ptr->data.name,ptr->data.hospital);
             if(i==0) head=del_begin(head);
             else if(ptr->next==NULL) head=del_end(head);
@@ -246,7 +255,6 @@ void save_rec(struct Node_rec* head,const char* fname) {
         ptr = ptr->next;
     }
     fclose(fptr);
-    printf("Recipient list saved successfully..\n");
 }
 
 //used to retrieve the recipients
@@ -257,7 +265,7 @@ struct Node_rec* load_rec(struct Node_rec* head,const char* fname){
         return NULL;
     }
     struct recipient temp;
-    while(fscanf(fptr,"%[^,],%[^,],%d,%[^,],%[^,],%s\n",temp.name,temp.blood_grp,&temp.age,temp.entry_date,temp.hospital,temp.super_urgency)==6){
+    while(fscanf(fptr,"%19[^,],%3[^,],%d,%10[^,],%19[^,],%3s\n",temp.name,temp.blood_grp,&temp.age,temp.entry_date,temp.hospital,temp.super_urgency)==6){
         head=add_rec(head,temp);
     }
     fclose(fptr);
@@ -278,7 +286,6 @@ void save_dnr(struct Node_dnr* head,const char* fname) {
         ptr = ptr->next;
     }
     fclose(fptr);
-    printf("Donor list saved successfully..\n");
 }
 
 //used to load the donors
@@ -289,7 +296,7 @@ struct Node_dnr* load_dnr(struct Node_dnr* head,const char* fname) {
         return NULL;
     }
     struct donor temp;
-    while (fscanf(fptr, "%[^,],%[^,],%d,%s\n",temp.name,temp.blood_grp,&temp.age,temp.death_date) == 4) {
+    while (fscanf(fptr, "%19[^,],%3[^,],%d,%10s\n",temp.name,temp.blood_grp,&temp.age,temp.death_date) == 4) {
         head = add_dnr(head, temp);
     }
     fclose(fptr);
@@ -297,10 +304,110 @@ struct Node_dnr* load_dnr(struct Node_dnr* head,const char* fname) {
     return head;
 }
 
-//used for replacing the \n with \0 while using fgets for input
+// Portable case-insensitive string compare (returns 0 if equal)
+int my_strcasecmp(const char *a, const char *b) {
+    unsigned char ca, cb;
+    while (*a && *b) {
+        ca = (unsigned char) tolower((unsigned char)*a);
+        cb = (unsigned char) tolower((unsigned char)*b);
+        if (ca != cb) return (int)ca - (int)cb;
+        a++; b++;
+    }
+    ca = (unsigned char) tolower((unsigned char)*a);
+    cb = (unsigned char) tolower((unsigned char)*b);
+    return (int)ca - (int)cb;
+}
+
+//used for replacing the \n / \r with \0 while using fgets for input
 void trim_newline(char *str) {
     int len = strlen(str);
-    if (len > 0 && str[len-1] == '\n') str[len-1] = '\0';
+    while (len > 0 && (str[len-1] == '\n' || str[len-1] == '\r')) {
+        str[len-1] = '\0';
+        len--;
+    }
+}
+
+// Free all nodes in recipient list
+void free_rec_list(struct Node_rec* head) {
+    struct Node_rec* tmp;
+    while (head != NULL) {
+        tmp = head;
+        head = head->next;
+        free(tmp);
+    }
+}
+
+// Free all nodes in donor list
+void free_dnr_list(struct Node_dnr* head) {
+    struct Node_dnr* tmp;
+    while (head != NULL) {
+        tmp = head;
+        head = head->next;
+        free(tmp);
+    }
+}
+
+// Uppercase a string in-place
+void uppercase_inplace(char *s) {
+    for (; *s; ++s) *s = (char) toupper((unsigned char) *s);
+}
+
+// Normalize and validate blood group. Returns 1 if valid, 0 otherwise.
+int validate_and_normalize_bldgrp(char *bg) {
+    trim_newline(bg);
+    // remove spaces
+    char tmp[8]; int j=0;
+    for (int i=0; bg[i] != '\0' && j < (int)(sizeof(tmp)-1); ++i) {
+        if (bg[i] != ' ' && bg[i] != '\t') tmp[j++] = bg[i];
+    }
+    tmp[j] = '\0';
+    uppercase_inplace(tmp);
+    // allowed groups
+    const char *allowed[] = {"O-","O+","A-","A+","B-","B+","AB-","AB+", NULL};
+    for (int i=0; allowed[i] != NULL; ++i) {
+        if (strcmp(tmp, allowed[i]) == 0) {
+            // copy normalized value back (fits in existing buffers)
+            strcpy(bg, tmp);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Check leap year
+int is_leap_year(int y) {
+    if (y % 400 == 0) return 1;
+    if (y % 100 == 0) return 0;
+    return (y % 4 == 0);
+}
+
+// Validate date in dd-mm-yyyy format. Returns 1 if valid, 0 otherwise.
+int validate_date(const char *s) {
+    if (s == NULL) return 0;
+    int d, m, y;
+    // Ensure format with separators and exact sizes
+    if (sscanf(s, "%2d-%2d-%4d", &d, &m, &y) != 3) return 0;
+    // check that the string has exactly 10 chars (dd-mm-yyyy)
+    if ((int)strlen(s) != 10) return 0;
+    if (s[2] != '-' || s[5] != '-') return 0;
+    if (y < 1900 || y > 9999) return 0;
+    if (m < 1 || m > 12) return 0;
+    int mdays = 31;
+    if (m == 4 || m == 6 || m == 9 || m == 11) mdays = 30;
+    else if (m == 2) mdays = is_leap_year(y) ? 29 : 28;
+    if (d < 1 || d > mdays) return 0;
+    return 1;
+}
+
+// Normalize super urgency to either "YES" or "NO"
+void normalize_super_urgency(char *s) {
+    trim_newline(s);
+    uppercase_inplace(s);
+    if (my_strcasecmp(s, "YES") == 0) {
+        strcpy(s, "YES");
+    } else {
+        strcpy(s, "NO");
+    }
 }
 
 int main(){
@@ -347,113 +454,141 @@ int main(){
         switch(option){
             //case 1 for checking if the organs of new donors are compatible with any of the recipients and allocating them
             //if no compatible recipient is found then the organ expires a there is a time limit for the transplant to happen after the organ is extracted
-            case 1: 
+            case 1: {
             struct donor new_dnr;
             printf("\nEnter organ(Heart/Kidney/Liver/Lungs): ");
-            fgets(organ,20,stdin);trim_newline(organ);
-            if(strcasecmp(organ,"Heart")!=0 && strcasecmp(organ,"Kidney")!=0 && strcasecmp(organ,"Lungs")!=0 && strcasecmp(organ,"Liver")!=0){
+            fgets(organ,sizeof(organ),stdin);trim_newline(organ);
+            if(my_strcasecmp(organ,"Heart")!=0 && my_strcasecmp(organ,"Kidney")!=0 && my_strcasecmp(organ,"Lungs")!=0 && my_strcasecmp(organ,"Liver")!=0){
                 printf("\nInvalid choice of organ! Please try again.");
                 break;
             }
             printf("\nEnter name: ");
-            fgets(new_dnr.name,20,stdin);trim_newline(new_dnr.name);
+            fgets(new_dnr.name,sizeof(new_dnr.name),stdin);trim_newline(new_dnr.name);
             printf("\nEnter blood group: ");
-            fgets(new_dnr.blood_grp,5,stdin);trim_newline(new_dnr.blood_grp);
+            fgets(new_dnr.blood_grp,sizeof(new_dnr.blood_grp),stdin);trim_newline(new_dnr.blood_grp);
+            if (!validate_and_normalize_bldgrp(new_dnr.blood_grp)) {
+                printf("Invalid blood group entered. Operation cancelled.\n");
+                break;
+            }
             printf("\nEnter age(in integer): ");
-            scanf("%d",&new_dnr.age);getchar();//using getchar() to prevent the next fgets from absorbing the nextline character
-            printf("\nEnter date of demise(dd-mm-yyyy): ");
-            fgets(new_dnr.death_date,15,stdin);trim_newline(new_dnr.death_date);
+            scanf("%d",&new_dnr.age);getchar();
+            if(new_dnr.age<0 || new_dnr.age>150){
+                printf("Invalid age. Please enter age between 0 and 150.\n");
+                break;
+            }
+            // Prompt until a valid date in dd-mm-yyyy is entered
+            while (1) {
+                printf("\nEnter date of demise(dd-mm-yyyy): ");
+                fgets(new_dnr.death_date,sizeof(new_dnr.death_date),stdin);trim_newline(new_dnr.death_date);
+                if (validate_date(new_dnr.death_date)) break;
+                printf("Invalid date format or value. Please enter date as dd-mm-yyyy (e.g. 31-12-2025).\n");
+            }
 
             int matched=0;
             int* mptr=&matched;
             
-            if(strcasecmp(organ,"Heart")==0){
+            if(my_strcasecmp(organ,"Heart")==0){
                 heart_rec=match_recipient(heart_rec,new_dnr.blood_grp,mptr);
             }
-            else if(strcasecmp(organ,"Kidney")==0){
+            else if(my_strcasecmp(organ,"Kidney")==0){
                 kidney_rec=match_recipient(kidney_rec,new_dnr.blood_grp,mptr);
             }
-            else if(strcasecmp(organ,"Liver")==0){
+            else if(my_strcasecmp(organ,"Liver")==0){
                 liver_rec=match_recipient(liver_rec,new_dnr.blood_grp,mptr);
             }
-            else if(strcasecmp(organ,"Lungs")==0){
+            else if(my_strcasecmp(organ,"Lungs")==0){
                 lungs_rec=match_recipient(lungs_rec,new_dnr.blood_grp,mptr);
             }
 
             if(matched){
-            if(strcasecmp(organ,"Heart")==0){
+            if(my_strcasecmp(organ,"Heart")==0){
                 heart_dnr=add_dnr(heart_dnr,new_dnr);
             }
-            else if(strcasecmp(organ,"Kidney")==0){
+            else if(my_strcasecmp(organ,"Kidney")==0){
                 kidney_dnr=add_dnr(kidney_dnr,new_dnr);
             }
-            else if(strcasecmp(organ,"Liver")==0){
+            else if(my_strcasecmp(organ,"Liver")==0){
                 liver_dnr=add_dnr(liver_dnr,new_dnr);
             }
-            else if(strcasecmp(organ,"Lungs")==0){
+            else if(my_strcasecmp(organ,"Lungs")==0){
                 lungs_dnr=add_dnr(lungs_dnr,new_dnr);
             }
             }
             else{
                 printf("Organ Allocation failed. Organ expired.\n");
             }
+            }
             break;
 
             //case 2 for adding a new recipient to any of the organ recipient lists
-            case 2:
+            case 2: {
             struct recipient new_rec;
             printf("\nEnter organ(Heart/Kidney/Liver/Lungs): ");
-            fgets(organ,20,stdin);trim_newline(organ);
-            if(strcasecmp(organ,"Heart")!=0 && strcasecmp(organ,"Kidney")!=0 && strcasecmp(organ,"Lungs")!=0 && strcasecmp(organ,"Liver")!=0){
+            fgets(organ,sizeof(organ),stdin);trim_newline(organ);
+            if(my_strcasecmp(organ,"Heart")!=0 && my_strcasecmp(organ,"Kidney")!=0 && my_strcasecmp(organ,"Lungs")!=0 && my_strcasecmp(organ,"Liver")!=0){
                 printf("\nInvalid choice of organ! Please try again.");
                 break;
             }
-
             printf("\nEnter name: ");
-            fgets(new_rec.name,20,stdin);trim_newline(new_rec.name);
+            fgets(new_rec.name,sizeof(new_rec.name),stdin);trim_newline(new_rec.name);
             printf("\nEnter blood group: ");
-            fgets(new_rec.blood_grp,5,stdin);trim_newline(new_rec.blood_grp);
+            fgets(new_rec.blood_grp,sizeof(new_rec.blood_grp),stdin);trim_newline(new_rec.blood_grp);
+            if (!validate_and_normalize_bldgrp(new_rec.blood_grp)) {
+                printf("Invalid blood group.\n");
+                break;
+            }
             printf("\nEnter age(in integer): ");
             scanf("%d",&new_rec.age);getchar();
-            printf("\nEnter date of entry(dd-mm-yyyy): ");
-            fgets(new_rec.entry_date,15,stdin);trim_newline(new_rec.entry_date);
+            if(new_rec.age<0 || new_rec.age>150){
+                printf("Invalid age. Please enter age between 0 and 150.\n");
+                break;
+            }
+            // Prompt until a valid date in dd-mm-yyyy is entered
+            while (1) {
+                printf("\nEnter date of entry(dd-mm-yyyy): ");
+                fgets(new_rec.entry_date,sizeof(new_rec.entry_date),stdin);trim_newline(new_rec.entry_date);
+                if (validate_date(new_rec.entry_date)) break;
+                printf("Invalid date. Please enter date as dd-mm-yyyy.\n");
+            }
             printf("\nEnter hospital name: ");
-            fgets(new_rec.hospital,20,stdin);trim_newline(new_rec.hospital);
+            fgets(new_rec.hospital,sizeof(new_rec.hospital),stdin);trim_newline(new_rec.hospital);
             printf("\nSuper-Urgency?(Yes/No): ");
-            fgets(new_rec.super_urgency,5,stdin);trim_newline(new_rec.super_urgency);
+            fgets(new_rec.super_urgency,sizeof(new_rec.super_urgency),stdin);trim_newline(new_rec.super_urgency);
+            normalize_super_urgency(new_rec.super_urgency);
 
-            if(strcasecmp(organ,"Heart")==0){
+            if(my_strcasecmp(organ,"Heart")==0){
                 heart_rec=add_rec(heart_rec,new_rec);
             }
-            else if(strcasecmp(organ,"Kidney")==0){
+            else if(my_strcasecmp(organ,"Kidney")==0){
                 kidney_rec=add_rec(kidney_rec,new_rec);
             }
-            else if(strcasecmp(organ,"Liver")==0){
+            else if(my_strcasecmp(organ,"Liver")==0){
                 liver_rec=add_rec(liver_rec,new_rec);
             }
-            else if(strcasecmp(organ,"Lungs")==0){
+            else if(my_strcasecmp(organ,"Lungs")==0){
                 lungs_rec=add_rec(lungs_rec,new_rec);
+            }
             }
             break;
 
             //case 3 to print the donor lists for a particular organ
             case 3:
             printf("\nEnter organ(Heart/Kidney/Liver/Lungs): ");
-            fgets(organ,20,stdin);trim_newline(organ);
-            if(strcasecmp(organ,"Heart")!=0 && strcasecmp(organ,"Kidney")!=0 && strcasecmp(organ,"Lungs")!=0 && strcasecmp(organ,"Liver")!=0){
-                printf("\nInvalid choice of organ! Please try again.");
+            fgets(organ,sizeof(organ),stdin);trim_newline(organ);
+            if(my_strcasecmp(organ,"Heart")!=0 && my_strcasecmp(organ,"Kidney")!=0 && my_strcasecmp(organ,"Lungs")!=0 && my_strcasecmp(organ,"Liver")!=0){
+                printf("\nInvalid Organ.");
                 break;
             }
-            if(strcasecmp(organ,"Heart")==0){
+            if(my_strcasecmp(organ,"Heart")==0){
                 print_donors(heart_dnr);
             }
-            else if(strcasecmp(organ,"Kidney")==0){
+            else if(my_strcasecmp(organ,"Kidney")==0){
                 print_donors(kidney_dnr);
             }
-            else if(strcasecmp(organ,"Liver")==0){
+            else if(my_strcasecmp(organ,"Liver")==0){
                 print_donors(liver_dnr);
             }
-            else if(strcasecmp(organ,"Lungs")==0){
+            else if(my_strcasecmp(organ,"Lungs")==0){
                 print_donors(lungs_dnr);
             }
             break;
@@ -461,21 +596,21 @@ int main(){
             //case 4 for printing the recipient lists for a specific organ
             case 4:
             printf("\nEnter organ(Heart/Kidney/Liver/Lungs): ");
-            fgets(organ,20,stdin);trim_newline(organ);
-            if(strcasecmp(organ,"Heart")!=0 && strcasecmp(organ,"Kidney")!=0 && strcasecmp(organ,"Lungs")!=0 && strcasecmp(organ,"Liver")!=0){
-                printf("\nInvalid choice of organ! Please try again.");
+            fgets(organ,sizeof(organ),stdin);trim_newline(organ);
+            if(my_strcasecmp(organ,"Heart")!=0 && my_strcasecmp(organ,"Kidney")!=0 && my_strcasecmp(organ,"Lungs")!=0 && my_strcasecmp(organ,"Liver")!=0){
+                printf("\nInvalid Organ.");
                 break;
             }
-            if(strcasecmp(organ,"Heart")==0){
+            if(my_strcasecmp(organ,"Heart")==0){
                 print_recipients(heart_rec);
             }
-            else if(strcasecmp(organ,"Kidney")==0){
+            else if(my_strcasecmp(organ,"Kidney")==0){
                 print_recipients(kidney_rec);
             }
-            else if(strcasecmp(organ,"Liver")==0){
+            else if(my_strcasecmp(organ,"Liver")==0){
                 print_recipients(liver_rec);
             }
-            else if(strcasecmp(organ,"Lungs")==0){
+            else if(my_strcasecmp(organ,"Lungs")==0){
                 print_recipients(lungs_rec);
             }
             break;
@@ -483,30 +618,30 @@ int main(){
             //case 5 to delete a recipient from the lists incase he expires before the allotment of the organ
             case 5:
             printf("\nEnter organ(Heart/Kidney/Liver/Lungs): ");
-            fgets(organ, 20, stdin);trim_newline(organ);
-            if(strcasecmp(organ,"Heart")!=0 && strcasecmp(organ,"Kidney")!=0 && strcasecmp(organ,"Lungs")!=0 && strcasecmp(organ,"Liver")!=0) {
-                printf("\nInvalid choice of organ! Please try again.");
+            fgets(organ, sizeof(organ), stdin);trim_newline(organ);
+            if(my_strcasecmp(organ,"Heart")!=0 && my_strcasecmp(organ,"Kidney")!=0 && my_strcasecmp(organ,"Lungs")!=0 && my_strcasecmp(organ,"Liver")!=0) {
+                printf("\nInvalid Organ.");
                 break;
             }
             char name[20];
             printf("\nEnter recipient name: ");
-            fgets(name, 20, stdin);trim_newline(name);
+            fgets(name, sizeof(name), stdin);trim_newline(name);
 
             struct Node_rec** list_ptr = NULL;
-            if(strcasecmp(organ,"Heart")==0) list_ptr = &heart_rec;
-            else if(strcasecmp(organ,"Kidney")==0) list_ptr = &kidney_rec;
-            else if(strcasecmp(organ,"Liver")==0) list_ptr = &liver_rec;
-            else if(strcasecmp(organ,"Lungs")==0) list_ptr = &lungs_rec;
+            if(my_strcasecmp(organ,"Heart")==0) list_ptr = &heart_rec;
+            else if(my_strcasecmp(organ,"Kidney")==0) list_ptr = &kidney_rec;
+            else if(my_strcasecmp(organ,"Liver")==0) list_ptr = &liver_rec;
+            else if(my_strcasecmp(organ,"Lungs")==0) list_ptr = &lungs_rec;
 
             struct Node_rec* ptr=(*(list_ptr));
-            while(ptr!=NULL && strcasecmp(ptr->data.name,name)!=0){
+            while(ptr!=NULL && my_strcasecmp(ptr->data.name,name)!=0){
                 ptr=ptr->next;
             }
             if(ptr==NULL){
                 printf("\nRecipient not found..");
             }
             else{
-                (*(list_ptr))=delete_rec(*list_ptr,ptr);
+                (*(list_ptr))=delete_rec(*list_ptr,&(ptr->data));
                 printf("\nRecipient successfully removed..");
             }
             break;
@@ -523,7 +658,20 @@ int main(){
             save_dnr(liver_dnr, "Liver Donors.txt");
             save_dnr(lungs_dnr, "Lungs Donors.txt");
 
-            printf("\nAll data saved. Exiting system safely...\n");
+            // free allocated lists before exiting
+            free_rec_list(heart_rec);
+            free_rec_list(kidney_rec);
+            free_rec_list(liver_rec);
+            free_rec_list(lungs_rec);
+
+            free_dnr_list(heart_dnr);
+            free_dnr_list(kidney_dnr);
+            free_dnr_list(liver_dnr);
+            free_dnr_list(lungs_dnr);
+
+            printf("Donor list saved successfully..\n");
+            printf("Recipient list saved successfully..\n");
+            printf("All data saved. Exiting system safely...\n");
             exit(0);
 
             //default case to handle incorrect menu option inputs

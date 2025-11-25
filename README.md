@@ -1,130 +1,130 @@
-# Organ-Transplant-System
+Organ Transplant System
+=======================
 
-A C-based console application designed to manage organ donors and
-recipients efficiently using linked lists and file handling. This system
-simulates a simplified organ-allocation workflow used in real transplant
-coordination, incorporating blood compatibility rules, urgency-based
-prioritization, and persistent storage.
+- A C-based console application designed to manage organ donors and recipients with efficient allocation logic, realistic blood-compatibility rules, urgency prioritization, and persistent data storage. The system uses linked lists for dynamic memory handling and text files for long-term record maintenance.
 
-## 📌 Overview
 
-The **Organ Transplant System** allows a coordinator to:
+Overview
+--------
 
--   Maintain lists of **recipients** waiting for Heart, Kidney, Liver,
-    or Lung transplants.
--   Add new **donors**, automatically check compatibility, and allocate
-    organs.
--   Prioritize **super urgent** cases.
--   Delete recipients who become ineligible.
--   Persist all records using text files.
+The Organ Transplant System allows transplant coordinators to:
 
-The system internally uses **singly linked lists** for dynamic data
-handling.
+- Maintain recipient lists for Heart, Kidney, Liver and Lungs.
+- Add donors and automatically allocate organs based on compatibility.
+- Prioritize super-urgent cases.
+- Remove ineligible or deceased recipients.
+- Save and load all data through text files.
 
-## 🔑 Features
 
-### 1. Donor Entry & Automatic Allocation
+Features
+--------
 
--   Add a donor for any organ.
--   System checks:
-    -   Blood group compatibility.
-    -   Super-urgency recipients.
--   If a match is found:
-    -   Displays allocation message.
-    -   Removes recipient from the list.
--   If no match:
-    -   Displays message indicating the organ expired.
+1. Donor Entry and Automatic Allocation
+- Add donors for any supported organ.
+- The system checks:
+- - Blood group compatibility
+- - Super-urgent recipients first
+- If matched:
+- - Displays allocation details
+- - Removes the recipient from the list
+- If unmatched:
+- - The organ is marked as expired
 
-### 2. Recipient Management
+2. Recipient Management
+Each recipient entry includes:
+- Name  
+- Blood group  
+- Age  
+- Date of entry  
+- Hospital name  
+- Super-urgency status (YES / NO)
 
-Add new recipients with: - Name\
-- Blood group\
-- Age\
-- Date of entry\
-- Hospital name\
-- Super urgency (`YES` or `NO`)
+Separate linked lists are maintained for each organ.
 
-Each recipient is stored in the linked list corresponding to their
-required organ.
+3. List Viewing
+View structured donor and recipient lists for:
+- Heart  
+- Kidney  
+- Liver  
+- Lungs  
 
-### 3. View Donor & Recipient Lists
+4. Delete Recipient
+Remove a recipient by name if:
+- They become medically ineligible  
+- They pass away before allocation  
 
-View formatted lists for: - Heart donors/recipients\
-- Kidney donors/recipients\
-- Liver donors/recipients\
-- Lungs donors/recipients
+5. Blood Group Compatibility
+Implements realistic transfusion-based compatibility rules:
+- Universal donor handling  
+- Universal recipient handling  
+- Rh factor rules  
+- ABO group matching  
 
-### 4. Delete Recipient
-
-Remove a recipient by name if they: - Are no longer eligible\
-- Pass away before allocation
-
-## 🩸 Blood Group Compatibility
-
-A dedicated function implements actual blood-donation rules,
-including: - `O-` as universal donor\
-- `AB+` as universal recipient\
-- Rh factor logic\
-- All A/B/O/AB matching rules
-
-## 🧠 Allocation Logic
-
+6. Allocation Logic
 When a donor is added:
-
-1.  Scan recipient list for **super-urgent** compatible patients.
-2.  If none, match with the first compatible recipient.
-3.  Delete the matched recipient from the list.
-4.  Add donor to the donor list if allocation succeeds.
-5.  If no match found → organ expires.
-
-## 🖥️ Menu Options
-
-  Option   Function
-  -------- ----------------------------------------
-  **1**    Enter new donor and attempt allocation
-  **2**    Add new recipient
-  **3**    View donor list
-  **4**    View recipient list
-  **5**    Delete a recipient
-  **6**    Save all data and exit
-
-## ⚙️ How to Compile & Run
-
-### Compile
-
-gcc organ_system.c -o organ_system
-
-### Run
-
-./organ_system
+1. Search for compatible super-urgent recipients.  
+2. If none, match the first compatible recipient in the list.  
+3. Remove the matched recipient.  
+4. Add the donor to the donor list.  
+5. If no match exists, the organ expires.  
 
 
-Ensure all `.txt` files are present in the same directory; if not, the
-program will create them.
+Menu Options
 
-## 📂 File Format
+| Option | Description                              |
+|--------|------------------------------------------|
+|   1    | Enter a new donor and attempt allocation |
+|   2    | Add a new recipient                      |
+|   3    | View donors list                         |
+|   4    | View recipients list                     |
+|   5    | Delete a recipient                       |
+|   6    | Save all data and exit                   |
 
-### Recipient File Format
 
-    name,bloodGroup,age,entryDate,hospital,superUrgency
 
-Example:
+Compilation and Execution
 
-    Rahul,O+,35,12-05-2024,Apollo,YES
+Compile
+- bash
+- - gcc organ_system.c -o organ_system
 
-### Donor File Format
+Run
+- bash
+- - ./organ_system
 
-    name,bloodGroup,age,dateOfDeath
 
-## 🛠️ Technologies Used
+All required `.txt` files should be stored in the same directory.  
+If missing, the program automatically creates them.
 
--   C Programming Language\
--   Linked Lists\
--   File Handling\
--   String Processing\
--   Memory Management
 
-## Project done by:  
-Y.Hemish Sri Chandra  
-Lalith Sai Redroutu  
-Praneeth Kumar Dola  
+File Formats
+------------
+
+Recipient File Format
+
+- name,bloodGroup,age,entryDate,hospital,superUrgency
+
+- Example:
+- - Rahul,O+,35,12-05-2024,Apollo,YES
+
+
+Donor File Format
+
+- name,bloodGroup,age,dateOfDeath
+
+
+Technologies Used
+-----------------
+
+- C Programming  
+- Linked Lists  
+- File Handling  
+- Dynamic Memory Management  
+- String Processing  
+
+
+Contributors
+------------
+- Y. Hemish Sri Chandra  
+- Lalith Sai Redroutu  
+- Dola Praneeth Kumar Gunda
